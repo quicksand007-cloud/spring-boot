@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2019 the original author or authors.
+ * Copyright 2012-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -132,7 +132,7 @@ public class Handler extends URLStreamHandler {
 		for (String handlerClassName : FALLBACK_HANDLERS) {
 			try {
 				Class<?> handlerClass = Class.forName(handlerClassName);
-				this.fallbackHandler = (URLStreamHandler) handlerClass.newInstance();
+				this.fallbackHandler = (URLStreamHandler) handlerClass.getDeclaredConstructor().newInstance();
 				return this.fallbackHandler;
 			}
 			catch (Exception ex) {

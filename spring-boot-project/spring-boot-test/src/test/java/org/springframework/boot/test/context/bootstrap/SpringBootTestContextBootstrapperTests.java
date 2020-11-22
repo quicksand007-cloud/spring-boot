@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2019 the original author or authors.
+ * Copyright 2012-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -71,6 +71,24 @@ class SpringBootTestContextBootstrapperTests {
 		assertThat(contextConfiguration).isEqualTo(otherContextConfiguration);
 	}
 
+	@Test
+	void mergedContextConfigurationWhenWebEnvironmentsDifferentShouldNotBeConsideredEqual() {
+		TestContext context = buildTestContext(SpringBootTestMockWebEnvironmentConfiguration.class);
+		Object contextConfiguration = ReflectionTestUtils.getField(context, "mergedContextConfiguration");
+		TestContext otherContext = buildTestContext(SpringBootTestDefinedPortWebEnvironmentConfiguration.class);
+		Object otherContextConfiguration = ReflectionTestUtils.getField(otherContext, "mergedContextConfiguration");
+		assertThat(contextConfiguration).isNotEqualTo(otherContextConfiguration);
+	}
+
+	@Test
+	void mergedContextConfigurationWhenWebEnvironmentsSameShouldtBeConsideredEqual() {
+		TestContext context = buildTestContext(SpringBootTestMockWebEnvironmentConfiguration.class);
+		Object contextConfiguration = ReflectionTestUtils.getField(context, "mergedContextConfiguration");
+		TestContext otherContext = buildTestContext(SpringBootTestAnotherMockWebEnvironmentConfiguration.class);
+		Object otherContextConfiguration = ReflectionTestUtils.getField(otherContext, "mergedContextConfiguration");
+		assertThat(contextConfiguration).isEqualTo(otherContextConfiguration);
+	}
+
 	@SuppressWarnings("rawtypes")
 	private TestContext buildTestContext(Class<?> testClass) {
 		SpringBootTestContextBootstrapper bootstrapper = new SpringBootTestContextBootstrapper();
@@ -96,6 +114,21 @@ class SpringBootTestContextBootstrapperTests {
 
 	@SpringBootTest(args = "--app.test=same")
 	static class SpringBootTestArgsConfiguration {
+
+	}
+
+	@SpringBootTest(webEnvironment = WebEnvironment.MOCK)
+	static class SpringBootTestMockWebEnvironmentConfiguration {
+
+	}
+
+	@SpringBootTest(webEnvironment = WebEnvironment.MOCK)
+	static class SpringBootTestAnotherMockWebEnvironmentConfiguration {
+
+	}
+
+	@SpringBootTest(webEnvironment = WebEnvironment.DEFINED_PORT)
+	static class SpringBootTestDefinedPortWebEnvironmentConfiguration {
 
 	}
 

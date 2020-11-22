@@ -27,7 +27,9 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import org.springframework.boot.autoconfigure.web.ErrorProperties;
-import org.springframework.boot.autoconfigure.web.ResourceProperties;
+import org.springframework.boot.autoconfigure.web.WebProperties.Resources;
+import org.springframework.boot.web.error.ErrorAttributeOptions;
+import org.springframework.boot.web.error.ErrorAttributeOptions.Include;
 import org.springframework.boot.web.reactive.error.ErrorAttributes;
 import org.springframework.context.ApplicationContext;
 import org.springframework.http.HttpStatus;
@@ -95,10 +97,27 @@ public class DefaultErrorWebExceptionHandler extends AbstractErrorWebExceptionHa
 	 * @param resourceProperties the resources configuration properties
 	 * @param errorProperties the error configuration properties
 	 * @param applicationContext the current application context
+	 * @deprecated since 2.4.0 in favor of
+	 * {@link #DefaultErrorWebExceptionHandler(ErrorAttributes, Resources, ErrorProperties, ApplicationContext)}
 	 */
-	public DefaultErrorWebExceptionHandler(ErrorAttributes errorAttributes, ResourceProperties resourceProperties,
+	@Deprecated
+	public DefaultErrorWebExceptionHandler(ErrorAttributes errorAttributes,
+			org.springframework.boot.autoconfigure.web.ResourceProperties resourceProperties,
 			ErrorProperties errorProperties, ApplicationContext applicationContext) {
-		super(errorAttributes, resourceProperties, applicationContext);
+		this(errorAttributes, (Resources) resourceProperties, errorProperties, applicationContext);
+	}
+
+	/**
+	 * Create a new {@code DefaultErrorWebExceptionHandler} instance.
+	 * @param errorAttributes the error attributes
+	 * @param resources the resources configuration properties
+	 * @param errorProperties the error configuration properties
+	 * @param applicationContext the current application context
+	 * @since 2.4.0
+	 */
+	public DefaultErrorWebExceptionHandler(ErrorAttributes errorAttributes, Resources resources,
+			ErrorProperties errorProperties, ApplicationContext applicationContext) {
+		super(errorAttributes, resources, applicationContext);
 		this.errorProperties = errorProperties;
 	}
 
@@ -113,11 +132,7 @@ public class DefaultErrorWebExceptionHandler extends AbstractErrorWebExceptionHa
 	 * @return a {@code Publisher} of the HTTP response
 	 */
 	protected Mono<ServerResponse> renderErrorView(ServerRequest request) {
-		boolean includeStackTrace = isIncludeStackTrace(request, MediaType.TEXT_HTML);
-		boolean includeMessage = isIncludeMessage(request, MediaType.TEXT_HTML);
-		boolean includeBindingErrors = isIncludeBindingErrors(request, MediaType.TEXT_HTML);
-		Map<String, Object> error = getErrorAttributes(request, includeStackTrace, includeMessage,
-				includeBindingErrors);
+		Map<String, Object> error = getErrorAttributes(request, getErrorAttributeOptions(request, MediaType.TEXT_HTML));
 		int errorStatus = getHttpStatus(error);
 		ServerResponse.BodyBuilder responseBody = ServerResponse.status(errorStatus).contentType(TEXT_HTML_UTF8);
 		return Flux.just(getData(errorStatus).toArray(new String[] {}))
@@ -144,13 +159,26 @@ public class DefaultErrorWebExceptionHandler extends AbstractErrorWebExceptionHa
 	 * @return a {@code Publisher} of the HTTP response
 	 */
 	protected Mono<ServerResponse> renderErrorResponse(ServerRequest request) {
-		boolean includeStackTrace = isIncludeStackTrace(request, MediaType.ALL);
-		boolean includeMessage = isIncludeMessage(request, MediaType.ALL);
-		boolean includeBindingErrors = isIncludeBindingErrors(request, MediaType.ALL);
-		Map<String, Object> error = getErrorAttributes(request, includeStackTrace, includeMessage,
-				includeBindingErrors);
+		Map<String, Object> error = getErrorAttributes(request, getErrorAttributeOptions(request, MediaType.ALL));
 		return ServerResponse.status(getHttpStatus(error)).contentType(MediaType.APPLICATION_JSON)
 				.body(BodyInserters.fromValue(error));
+	}
+
+	protected ErrorAttributeOptions getErrorAttributeOptions(ServerRequest request, MediaType mediaType) {
+		ErrorAttributeOptions options = ErrorAttributeOptions.defaults();
+		if (this.errorProperties.isIncludeException()) {
+			options = options.including(Include.EXCEPTION);
+		}
+		if (isIncludeStackTrace(request, mediaType)) {
+			options = options.including(Include.STACK_TRACE);
+		}
+		if (isIncludeMessage(request, mediaType)) {
+			options = options.including(Include.MESSAGE);
+		}
+		if (isIncludeBindingErrors(request, mediaType)) {
+			options = options.including(Include.BINDING_ERRORS);
+		}
+		return options;
 	}
 
 	/**
