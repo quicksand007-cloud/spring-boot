@@ -90,8 +90,8 @@ class ConfigDataEnvironment {
 		locations.add(ConfigDataLocation.of("optional:classpath:/"));
 		locations.add(ConfigDataLocation.of("optional:classpath:/config/"));
 		locations.add(ConfigDataLocation.of("optional:file:./"));
-		locations.add(ConfigDataLocation.of("optional:file:./config/*/"));
 		locations.add(ConfigDataLocation.of("optional:file:./config/"));
+		locations.add(ConfigDataLocation.of("optional:file:./config/*/"));
 		DEFAULT_SEARCH_LOCATIONS = locations.toArray(new ConfigDataLocation[0]);
 	};
 
@@ -297,6 +297,7 @@ class ConfigDataEnvironment {
 	private void applyToEnvironment(ConfigDataEnvironmentContributors contributors,
 			ConfigDataActivationContext activationContext) {
 		checkForInvalidProperties(contributors);
+		checkMandatoryLocations(contributors, activationContext);
 		MutablePropertySources propertySources = this.environment.getPropertySources();
 		this.logger.trace("Applying config data environment contributions");
 		for (ConfigDataEnvironmentContributor contributor : contributors) {
@@ -325,6 +326,35 @@ class ConfigDataEnvironment {
 		for (ConfigDataEnvironmentContributor contributor : contributors) {
 			InvalidConfigDataPropertyException.throwOrWarn(this.logger, contributor);
 		}
+	}
+
+	private void checkMandatoryLocations(ConfigDataEnvironmentContributors contributors,
+			ConfigDataActivationContext activationContext) {
+		Set<ConfigDataLocation> mandatoryLocations = new LinkedHashSet<>();
+		for (ConfigDataEnvironmentContributor contributor : contributors) {
+			mandatoryLocations.addAll(getMandatoryImports(contributor));
+		}
+		for (ConfigDataEnvironmentContributor contributor : contributors) {
+			if (contributor.getLocation() != null) {
+				mandatoryLocations.remove(contributor.getLocation());
+			}
+		}
+		if (!mandatoryLocations.isEmpty()) {
+			for (ConfigDataLocation mandatoryLocation : mandatoryLocations) {
+				this.notFoundAction.handle(this.logger, new ConfigDataLocationNotFoundException(mandatoryLocation));
+			}
+		}
+	}
+
+	private Set<ConfigDataLocation> getMandatoryImports(ConfigDataEnvironmentContributor contributor) {
+		List<ConfigDataLocation> imports = contributor.getImports();
+		Set<ConfigDataLocation> mandatoryLocations = new LinkedHashSet<>(imports.size());
+		for (ConfigDataLocation location : imports) {
+			if (!location.isOptional()) {
+				mandatoryLocations.add(location);
+			}
+		}
+		return mandatoryLocations;
 	}
 
 }
